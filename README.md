@@ -2,7 +2,18 @@
 
 This is my attempts at the assignments for Stanford cs231n winter 2016 classes. 
 
-The original course website is [here](http://cs231n.stanford.edu/2016/syllabus).
+The original course website is [here](http://cs231n.stanford.edu/2016/syllabus). 
+Videos on [YouTube](https://www.youtube.com/watch?v=NfnWJUyUJYU&list=PLkt2uSq6rBVctENoVBg1TpCC7OQi31AlC)
+
+## Package Requirement
+
+Extra package(s) required:
+
+```
+tqdm
+```
+
+## For Python 3.x
 
 The original code works for Python 2.x, a few things are needed to port them to Python 3.x
 
