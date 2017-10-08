@@ -158,7 +158,7 @@ class KNearestNeighbor(object):
         #######################################################################
         return dists
 
-    def predict_labels(self, dists, k=1, debug=True):
+    def predict_labels(self, dists, k=1, debug=False):
         """
         Given a matrix of distances between test points and training points,
         predict a label for each test point.
