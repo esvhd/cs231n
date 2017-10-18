@@ -42,8 +42,8 @@ def softmax_loss_naive(W, X, y, reg):
     loss /= num_train
     loss += .5 * reg * np.sum(np.multiply(W, W))
 
-    correct_probs = logprob[range(num_train), y]
-    assert(correct_probs.shape == (num_train,))
+    # correct_probs = logprob[range(num_train), y]
+    # assert(correct_probs.shape == (num_train,))
 
     # see DL notes for backprop derivatives.
     delta = np.zeros_like(scores)
@@ -89,8 +89,8 @@ def softmax_loss_vectorized(W, X, y, reg):
     loss /= num_train
     loss += .5 * reg * np.sum(np.multiply(W, W))
 
-    correct_probs = logprob[range(num_train), y]
-    assert(correct_probs.shape == (num_train,))
+    # correct_probs = logprob[range(num_train), y]
+    # assert(correct_probs.shape == (num_train,))
 
     # see DL notes for backprop derivatives.
     delta = np.zeros_like(scores)
