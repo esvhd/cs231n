@@ -22,8 +22,10 @@ class Solver(object):
     that performed best on the validation set over the course of training.
     In addition, the instance variable solver.loss_history will contain a list
     of all losses encountered during training and the instance variables
-    solver.train_acc_history and solver.val_acc_history will be lists containing
-    the accuracies of the model on the training and validation set at each epoch.
+    solver.train_acc_history and solver.val_acc_history will be lists
+    containing
+    the accuracies of the model on the training and validation set at each
+    epoch.
 
     Example usage might look something like this:
 
@@ -64,7 +66,8 @@ class Solver(object):
       - scores: Array of shape (N, C) giving classification scores for X where
         scores[i, c] gives the score of class c for X[i].
 
-      If y is not None, run a training time forward and backward pass and return
+      If y is not None, run a training time forward and backward pass and
+      return
       a tuple of:
       - loss: Scalar giving the loss
       - grads: Dictionary with the same keys as self.params mapping parameter
@@ -77,10 +80,14 @@ class Solver(object):
 
         Required arguments:
         - model: A model object conforming to the API described above
-        - data: A dictionary of training and validation data with the following:
-          'X_train': Array of shape (N_train, d_1, ..., d_k) giving training images
-          'X_val': Array of shape (N_val, d_1, ..., d_k) giving validation images
-          'y_train': Array of shape (N_train,) giving labels for training images
+        - data: A dictionary of training and validation data with the
+        following:
+          'X_train': Array of shape (N_train, d_1, ..., d_k) giving training
+          images
+          'X_val': Array of shape (N_val, d_1, ..., d_k) giving validation
+          images
+          'y_train': Array of shape (N_train,) giving labels for training
+          images
           'y_val': Array of shape (N_val,) giving labels for validation images
 
         Optional arguments:
@@ -90,14 +97,18 @@ class Solver(object):
           passed to the chosen update rule. Each update rule requires different
           hyperparameters (see optim.py) but all update rules require a
           'learning_rate' parameter so that should always be present.
-        - lr_decay: A scalar for learning rate decay; after each epoch the learning
+        - lr_decay: A scalar for learning rate decay; after each epoch the
+        learning
           rate is multiplied by this value.
-        - batch_size: Size of minibatches used to compute loss and gradient during
+        - batch_size: Size of minibatches used to compute loss and gradient
+        during
           training.
         - num_epochs: The number of epochs to run for during training.
-        - print_every: Integer; training losses will be printed every print_every
+        - print_every: Integer; training losses will be printed every
+        print_every
           iterations.
-        - verbose: Boolean; if set to false then no output will be printed during
+        - verbose: Boolean; if set to false then no output will be printed
+        during
           training.
         """
         self.model = model
@@ -145,7 +156,7 @@ class Solver(object):
         # Make a deep copy of the optim_config for each parameter
         self.optim_configs = {}
         for p in self.model.params:
-            d = {k: v for k, v in self.optim_config.iteritems()}
+            d = {k: v for k, v in self.optim_config.items()}
             self.optim_configs[p] = d
 
     def _step(self):
@@ -164,7 +175,7 @@ class Solver(object):
         self.loss_history.append(loss)
 
         # Perform a parameter update
-        for p, w in self.model.params.iteritems():
+        for p, w in self.model.params.items():
             dw = grads[p]
             config = self.optim_configs[p]
             next_w, next_config = self.update_rule(w, dw, config)
@@ -180,7 +191,8 @@ class Solver(object):
         - y: Array of labels, of shape (N,)
         - num_samples: If not None, subsample the data and only test the model
           on num_samples datapoints.
-        - batch_size: Split X and y into batches of this size to avoid using too
+        - batch_size: Split X and y into batches of this size to avoid using
+        too
           much memory.
 
         Returns:
@@ -197,7 +209,7 @@ class Solver(object):
             y = y[mask]
 
         # Compute predictions in batches
-        num_batches = N / batch_size
+        num_batches = N // batch_size
         if N % batch_size != 0:
             num_batches += 1
         y_pred = []
@@ -216,7 +228,7 @@ class Solver(object):
         Run optimization to train the model.
         """
         num_train = self.X_train.shape[0]
-        iterations_per_epoch = max(num_train / self.batch_size, 1)
+        iterations_per_epoch = max(num_train // self.batch_size, 1)
         num_iterations = self.num_epochs * iterations_per_epoch
 
         for t in range(num_iterations):
@@ -255,7 +267,7 @@ class Solver(object):
                 if val_acc > self.best_val_acc:
                     self.best_val_acc = val_acc
                     self.best_params = {}
-                    for k, v in self.model.params.iteritems():
+                    for k, v in self.model.params.items():
                         self.best_params[k] = v.copy()
 
         # At the end of training swap the best params into the model
