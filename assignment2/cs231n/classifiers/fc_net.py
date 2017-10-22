@@ -248,15 +248,21 @@ class FullyConnectedNet(object):
         self.output_dim = num_classes
 
         L = len(hidden_dims)
-        # initialize weights
-        for i in range(L):
-            if i < 1:
+        # initialize weights, indexing starts from 1
+        for i in range(1, self.num_layers + 1):
+            if i < 2:
                 D = input_dim
             else:
-                D = hidden_dims[i-1]
-            M = hidden_dims[i]
-            self.params['W' + int(i)] = np.random.randn(D, M) * weights_scale
-            self.params['b' + int(i)] = np.zeros(M)
+                D = hidden_dims[i - 2]
+
+            if i < L + 1:
+                M = hidden_dims[i - 1]
+            else:
+                M = self.output_dim
+
+            # print(i, (D, M))
+            self.params['W' + str(i)] = np.random.randn(D, M) * weight_scale
+            self.params['b' + str(i)] = np.zeros(M)
         #######################################################################
         #                             END OF YOUR CODE                   #
         #######################################################################
@@ -285,7 +291,7 @@ class FullyConnectedNet(object):
                               for i in range(self.num_layers - 1)]
 
         # Cast all parameters to the correct datatype
-        for k, v in self.params.iteritems():
+        for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
 
     def loss(self, X, y=None):
@@ -322,32 +328,37 @@ class FullyConnectedNet(object):
         # layer, etc.                                                    #
         #######################################################################
         L = len(self.hidden_dims)
-        h_prev = X.rehape(X.shape[0], -1)
+        num_train = X.shape[0]
+        h_prev = X.reshape(num_train, -1)
         W_sums = 0
-        cache = {}
-        for i in range(L-1):
-            W = self.params.get('W' + int(i))
-            b = self.params.get('b' + int(i))
+        affine_cache = {}
+        act_cache = {}
+
+        for i in range(1, self.num_layers):
+            W = self.params.get('W' + str(i))
+            b = self.params.get('b' + str(i))
             assert(W is not None)
-            assert(W.shape == (h_prev.shape[1], self.hidden_dims[i]))
+            if i < L + 1:
+                assert(W.shape == (h_prev.shape[1], self.hidden_dims[i - 1]))
+            else:
+                assert(W.shape == (h_prev.shape[1], self.output_dim))
             assert(b is not None)
-            z = np.dot(h_prev, W) + b
-            # todo here: what to do with cache
+
+            z, a_cache = affine_forward(h_prev, W, b)
             h_prev, h_cache = relu_forward(z)
 
             # accumulate for regularization
             W_sums += np.sum(W * W)
 
-            cache['h' + int(i)] = h_prev
-            cache['z' + int(i)] = z
+            affine_cache[i] = a_cache
+            act_cache[i] = h_cache
 
         # last layer, softmax head
-        W = self.params.get('W' + int(L))
-        b = self.parmas.get('b' + int(L))
-        scores = np.dot(h_prev, W) + b
-        W_sum += np.sum(W * W)
+        W = self.params.get('W' + str(L + 1))
+        b = self.params.get('b' + str(L + 1))
 
-        cache['z' + int(L)] = scores
+        scores, scores_cache = affine_forward(h_prev, W, b)
+        W_sums += np.sum(W * W)
         #######################################################################
         #                             END OF YOUR CODE                      #
         #######################################################################
@@ -378,31 +389,72 @@ class FullyConnectedNet(object):
         #######################################################################
         probs = softmax(scores, axis=1)
         logprobs = np.log(probs)
-        loss += np.sum(logprobs[range(logprobs.shape[0]), y])
-        loss /= logprobs.shape[0]
+        loss += -np.sum(logprobs[range(logprobs.shape[0]), y])
+        loss /= num_train
 
         # regularization
-        loss += .5 * self.reg * W_sum
+        loss += .5 * self.reg * W_sums
 
-        # backprop
+        # backprop through softmax and last affine layer
         delta = np.zeros_like(scores)
         delta[range(scores.shape[0]), y] = 1
-        dscore = scores - delta
-        # through all layers
-        dout = dscore
-        cache = {}
-        for ii in reverse(range(L)):
-            dW = grads.get('W' + int(ii), 0)
-            db = grads.get('b' + int(ii), 0)
+        dscore = probs - delta
+        # need to average over all examples. This would ensure 1/N is carried
+        # back to the weights through the chain rule.
+        dscore /= num_train
 
-            dz = cache.get('z' + int(ii))
-            assert(z is not None)
-            drelu = relu_backward(dout, cache)
+        # loss2, dscore2 = softmax_loss(scores, y)
+        # assert(np.allclose(dscore, dscore2))
 
-            # store grads
-            grads['W' + int(ii)] = dW
-            grads['b' + int(ii)] = db
+        dxL, dWL, dbL = affine_backward(dscore, scores_cache)
 
+        # test averaging at the end
+        # following has the same effect, but the averaging takes place
+        # at the end of the chain.
+        # dxx, dwx, dbx = affine_backward(dscore * num_train, scores_cache)
+        # dwx /= num_train
+        # doutx = dxx
+        # assert(np.allclose(dwx, dWL))
+
+        # whether to get weights from cache or params are the same.
+        _, W, _ = scores_cache
+        W2 = self.params['W' + str(L + 1)]
+        assert(np.allclose(W, W2))
+        grads['W' + str(L + 1)] = dWL + self.reg * W
+        grads['b' + str(L + 1)] = dbL
+
+        # through all other layers
+        dout = dxL
+        for ii in reversed(range(1, self.num_layers)):
+            # print(ii)
+            x = act_cache.get(ii)
+            assert(x is not None)
+            drelu = relu_backward(dout, x)
+
+            a_cache = affine_cache.get(ii)
+            assert(a_cache is not None)
+            dout, dWL, dbL = affine_backward(drelu, a_cache)
+            # dout is passed to the next rele_backward
+
+            # accumulate gradient
+            _, W, _ = a_cache
+            W2 = self.params['W' + str(ii)]
+            assert(np.allclose(W, W2))
+
+            # doing averaging here failed grad_checks, but it should be
+            # the same. Can write a test case like the one used for the last
+            # affine layer to validate.
+            # dW = dWL / num_train
+            # db = dbL / num_train
+
+            # test case below, it actually passes.
+            # drelux = relu_backward(doutx, x)
+            # doutx, dwx, dbx = affine_backward(drelux, a_cache)
+            # dwx /= num_train
+            # assert(np.allclose(dwx, dWL))
+
+            grads['W' + str(ii)] = dWL + self.reg * W
+            grads['b' + str(ii)] = dbL
         #######################################################################
         #                             END OF YOUR CODE                     #
         #######################################################################
@@ -410,7 +462,7 @@ class FullyConnectedNet(object):
         return loss, grads
 
 
-def softmax(z, i=None, axis=None):
+def softmax(z, i=None, axis=None, eps=1e-8):
     '''
     Numerically stable softmax.
 
@@ -434,7 +486,7 @@ def softmax(z, i=None, axis=None):
     else:
         top = np.exp(z_mod)
     bottom = np.sum(np.exp(z_mod), axis=axis, keepdims=True)
-    prob = top / bottom
+    prob = top / (bottom + eps)
     if i is not None:
         assert(prob.shape == (z.shape[0],))
     else:

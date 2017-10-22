@@ -56,7 +56,8 @@ def sgd_momentum(w, dw, config=None):
     - learning_rate: Scalar learning rate.
     - momentum: Scalar between 0 and 1 giving the momentum value.
       Setting momentum = 0 reduces to sgd.
-    - velocity: A numpy array of the same shape as w and dw used to store a moving
+    - velocity: A numpy array of the same shape as w and dw used to store a
+    moving
       average of the gradients.
     """
     if config is None:
@@ -70,7 +71,14 @@ def sgd_momentum(w, dw, config=None):
     # TODO: Implement the momentum update formula. Store the updated value in #
     # the next_w variable. You should also use and update the velocity v.     #
     ##########################################################################
-    pass
+    mom = config.get('momentum')
+    lr = config.get('learning_rate')
+    v *= mom
+    v -= lr * dw
+    # no need to update dict since update is in-place
+    # config['velocity'] = v
+    w += v
+    next_w = w
     ##########################################################################
     #                             END OF YOUR CODE                   #
     ##########################################################################
@@ -81,7 +89,8 @@ def sgd_momentum(w, dw, config=None):
 
 def rmsprop(x, dx, config=None):
     """
-    Uses the RMSProp update rule, which uses a moving average of squared gradient
+    Uses the RMSProp update rule, which uses a moving average of squared
+    gradient
     values to set adaptive per-parameter learning rates.
 
     config format:
@@ -104,7 +113,15 @@ def rmsprop(x, dx, config=None):
     # in the next_x variable. Don't forget to update cache value stored in  #
     # config['cache'].                                                 #
     ##########################################################################
-    pass
+    dr = config.get('decay_rate')
+    lr = config.get('learning_rate')
+    eps = config.get('epsilon')
+    cache = config.get('cache')
+
+    cache *= dr
+    cache += (1 - dr) * dx**2
+    x += - lr * dx / (np.sqrt(cache) + eps)
+    next_x = x
     ##########################################################################
     #                             END OF YOUR CODE                 #
     ##########################################################################
@@ -142,7 +159,26 @@ def adam(x, dx, config=None):
     # the next_x variable. Don't forget to update the m, v, and t variables   #
     # stored in config.                                           #
     ##########################################################################
-    pass
+    lr = config.get('learning_rate')
+    eps = config.get('epsilon')
+    beta1 = config.get('beta1')
+    beta2 = config.get('beta2')
+    m = config.get('m')
+    v = config.get('v')
+    t = config.get('t')
+
+    m *= beta1
+    m += (1 - beta1) * dx
+    v *= beta2
+    v += (1 - beta2) * dx**2
+    if not np.isclose(t, 0):
+        mb = m / (1 - beta1**t)
+        vb = v / (1 - beta2**t)
+    else:
+        mb = m
+        vb = v
+    x += - lr * mb / (np.sqrt(vb) + eps)
+    next_x = x
     ##########################################################################
     #                             END OF YOUR CODE                     #
     ##########################################################################
