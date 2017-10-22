@@ -243,7 +243,20 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift #
         # parameters should be initialized to zero.                          #
         #######################################################################
-        pass
+        self.hidden_dims = hidden_dims
+        self.input_dim = input_dim
+        self.output_dim = num_classes
+
+        L = len(hidden_dims)
+        # initialize weights
+        for i in range(L):
+            if i < 1:
+                D = input_dim
+            else:
+                D = hidden_dims[i-1]
+            M = hidden_dims[i]
+            self.params['W' + int(i)] = np.random.randn(D, M) * weights_scale
+            self.params['b' + int(i)] = np.zeros(M)
         #######################################################################
         #                             END OF YOUR CODE                   #
         #######################################################################
@@ -308,7 +321,33 @@ class FullyConnectedNet(object):
         # normalization #
         # layer, etc.                                                    #
         #######################################################################
-        pass
+        L = len(self.hidden_dims)
+        h_prev = X.rehape(X.shape[0], -1)
+        W_sums = 0
+        cache = {}
+        for i in range(L-1):
+            W = self.params.get('W' + int(i))
+            b = self.params.get('b' + int(i))
+            assert(W is not None)
+            assert(W.shape == (h_prev.shape[1], self.hidden_dims[i]))
+            assert(b is not None)
+            z = np.dot(h_prev, W) + b
+            # todo here: what to do with cache
+            h_prev, h_cache = relu_forward(z)
+
+            # accumulate for regularization
+            W_sums += np.sum(W * W)
+
+            cache['h' + int(i)] = h_prev
+            cache['z' + int(i)] = z
+
+        # last layer, softmax head
+        W = self.params.get('W' + int(L))
+        b = self.parmas.get('b' + int(L))
+        scores = np.dot(h_prev, W) + b
+        W_sum += np.sum(W * W)
+
+        cache['z' + int(L)] = scores
         #######################################################################
         #                             END OF YOUR CODE                      #
         #######################################################################
@@ -337,7 +376,33 @@ class FullyConnectedNet(object):
         # factor #
         # of 0.5 to simplify the expression for the gradient.              #
         #######################################################################
-        pass
+        probs = softmax(scores, axis=1)
+        logprobs = np.log(probs)
+        loss += np.sum(logprobs[range(logprobs.shape[0]), y])
+        loss /= logprobs.shape[0]
+
+        # regularization
+        loss += .5 * self.reg * W_sum
+
+        # backprop
+        delta = np.zeros_like(scores)
+        delta[range(scores.shape[0]), y] = 1
+        dscore = scores - delta
+        # through all layers
+        dout = dscore
+        cache = {}
+        for ii in reverse(range(L)):
+            dW = grads.get('W' + int(ii), 0)
+            db = grads.get('b' + int(ii), 0)
+
+            dz = cache.get('z' + int(ii))
+            assert(z is not None)
+            drelu = relu_backward(dout, cache)
+
+            # store grads
+            grads['W' + int(ii)] = dW
+            grads['b' + int(ii)] = db
+
         #######################################################################
         #                             END OF YOUR CODE                     #
         #######################################################################
