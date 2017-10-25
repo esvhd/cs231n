@@ -333,6 +333,7 @@ class FullyConnectedNet(object):
         W_sums = 0
         affine_cache = {}
         act_cache = {}
+        dropout_cache = {}
 
         for i in range(1, self.num_layers):
             W = self.params.get('W' + str(i))
@@ -346,6 +347,11 @@ class FullyConnectedNet(object):
 
             z, a_cache = affine_forward(h_prev, W, b)
             h_prev, h_cache = relu_forward(z)
+
+            # dropout
+            if self.use_dropout:
+                h_prev, u_cache = dropout_forward(h_prev, self.dropout_param)
+                dropout_cache[i] = u_cache
 
             # accumulate for regularization
             W_sums += np.sum(W * W)
@@ -388,7 +394,7 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.              #
         #######################################################################
         probs = softmax(scores, axis=1)
-        logprobs = np.log(probs)
+        logprobs = np.log(probs + 1e-8)
         loss += -np.sum(logprobs[range(logprobs.shape[0]), y])
         loss /= num_train
 
@@ -427,6 +433,10 @@ class FullyConnectedNet(object):
         dout = dxL
         for ii in reversed(range(1, self.num_layers)):
             # print(ii)
+            if self.use_dropout:
+                u_cache = dropout_cache.get(ii)
+                dout = dropout_backward(dout, u_cache)
+
             x = act_cache.get(ii)
             assert(x is not None)
             drelu = relu_backward(dout, x)

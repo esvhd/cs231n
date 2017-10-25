@@ -381,7 +381,8 @@ def dropout_forward(x, dropout_param):
         # dropout.   #
         # Store the dropout mask in the mask variable.  #
         #######################################################################
-        pass
+        mask = (np.random.rand(*x.shape) < p) / p
+        out = np.multiply(x, mask)
         #######################################################################
         #                            END OF YOUR CODE                #
         #######################################################################
@@ -389,7 +390,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # TODO: Implement the test phase forward pass for inverted dropout. #
         #######################################################################
-        pass
+        out = x
         #######################################################################
         #                            END OF YOUR CODE                #
         #######################################################################
@@ -417,7 +418,7 @@ def dropout_backward(dout, cache):
         # TODO: Implement the training phase backward pass for inverted
         # dropout.  #
         #######################################################################
-        pass
+        dx = np.multiply(dout, mask)
         #######################################################################
         #                            END OF YOUR CODE               #
         #######################################################################
@@ -455,7 +456,26 @@ def conv_forward_naive(x, w, b, conv_param):
     # TODO: Implement the convolutional forward pass.            #
     # Hint: you can use the function np.pad for padding.                 #
     ##########################################################################
-    pass
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    assert(H >= HH and W >= WW), 'Filter larger than input!'
+    stride, pad = conv_params.get('stride'), conv_params.get('pad')
+    H_out = 1 + (H + 2 * pad - HH) / stride
+    W_out = 1 + (W + 2 * pad - WW) / stride
+
+    # filtering is done as y = wx + b
+    # prepare output
+    out = np.zeros((N, F, H_out, W_out))
+    for n in range(N):
+        d = x[n]
+        for f in range(F):
+            fw = w[f]
+            for c in range(C):
+                im = np.pad(d[c], pad, mode='constant', constant_values=0)
+                im_h, im_w = im.shape
+                # todo im2col
+
+
     ##########################################################################
     #                             END OF YOUR CODE                     #
     ##########################################################################
