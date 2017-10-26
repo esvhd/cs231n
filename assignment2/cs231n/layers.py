@@ -459,23 +459,31 @@ def conv_forward_naive(x, w, b, conv_param):
     N, C, H, W = x.shape
     F, _, HH, WW = w.shape
     assert(H >= HH and W >= WW), 'Filter larger than input!'
-    stride, pad = conv_params.get('stride'), conv_params.get('pad')
-    H_out = 1 + (H + 2 * pad - HH) / stride
-    W_out = 1 + (W + 2 * pad - WW) / stride
+    stride, pad = conv_param.get('stride'), conv_param.get('pad')
+    H_out = 1 + (H + 2 * pad - HH) // stride
+    W_out = 1 + (W + 2 * pad - WW) // stride
 
-    # filtering is done as y = wx + b
     # prepare output
     out = np.zeros((N, F, H_out, W_out))
+
+    # pad only along H and W
+    # pad_width here is a tuple of tuples, each indicating the pad along
+    # an axis, (pad,) is short for (pad,pad)
+    x_pad = np.pad(x, ((0,), (0,), (pad,), (pad,)),
+                   'constant', constant_values=0)
+
     for n in range(N):
-        d = x[n]
+        # for each example
         for f in range(F):
-            fw = w[f]
-            for c in range(C):
-                im = np.pad(d[c], pad, mode='constant', constant_values=0)
-                im_h, im_w = im.shape
-                # todo im2col
-
-
+            # for each filter
+            for ho in range(H_out):
+                for wo in range(W_out):
+                    # for each cell in output
+                    hx = ho * stride
+                    wx = wo * stride
+                    # filter is applied to the full depth of the region
+                    xx = x_pad[n, :, hx:hx + HH, wx:wx + WW]
+                    out[n, f, ho, wo] = np.sum(xx * w[f]) + b[f]
     ##########################################################################
     #                             END OF YOUR CODE                     #
     ##########################################################################
@@ -500,7 +508,46 @@ def conv_backward_naive(dout, cache):
     ##########################################################################
     # TODO: Implement the convolutional backward pass.                 #
     ##########################################################################
-    pass
+    x, w, b, conv_param = cache
+    stride, pad = conv_param.get('stride'), conv_param.get('pad')
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    _, _, H_out, W_out = dout.shape
+
+    # dout.shape == (N, F, H_out, W_out)
+
+    # db.shape = (F,)
+    db = dout.sum(axis=3).sum(axis=2).sum(axis=0)
+    assert(db.shape == b.shape)
+
+    x_pad = np.pad(x, ((0,), (0,), (pad,), (pad,)),
+                   'constant', constant_values=0)
+
+    # dw.shape == (F, C, HH, WW)
+    dw = np.zeros_like(w)
+    # dx = np.zeros_like(x)
+    dx_pad = np.zeros_like(x_pad)
+
+    for n in range(N):
+        for f in range(F):
+            for ho in range(H_out):
+                for wo in range(W_out):
+                    hh = ho * stride
+                    ww = wo * stride
+
+                    m = x_pad[n, :, hh:hh + HH, ww:ww + WW]
+                    assert(m.shape == (C, HH, WW))
+                    # sum over all images, all local regions matching filter
+                    # size
+                    dw[f] += m * dout[n, f, ho, wo]
+
+                    # sum over all filters
+                    dx_pad[n, :,
+                           hh:hh + HH,
+                           ww:ww + WW] += w[f] * dout[n, f, ho, wo]
+    # unpad
+    dx = dx_pad[:, :, 1:-1, 1:-1]
+    assert(dx.shape == x.shape)
     ##########################################################################
     #                             END OF YOUR CODE               #
     ##########################################################################
