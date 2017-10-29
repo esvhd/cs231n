@@ -78,6 +78,10 @@ class ThreeLayerConvNet(object):
         H_out = 1 + (H_out_conv - max_pool_size) // max_pool_stride
         W_out = 1 + (W_out_conv - max_pool_size) // max_pool_stride
 
+	# this assertion only works with the current filter/pool settings
+        assert(H_out == H // 2), (H_out, H // 2)
+        assert(W_out == W // 2), (W_out, W // 2)
+
         W2 = np.random.randn(num_filters * H_out * W_out,
                              hidden_dim) * weight_scale
         b2 = np.zeros(hidden_dim)
