@@ -181,7 +181,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # variables.        #
         #######################################################################
         mean = np.mean(x, axis=0)
-        variance = np.var(x, axis=0)
+        # use population variance rather than sample mean here. hmm..
+        variance = np.var(x, axis=0, ddof=0)
         x_norm = (x - mean) / np.sqrt(variance + eps)
 
         running_mean *= momentum
@@ -692,7 +693,51 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                 #
     ##########################################################################
-    pass
+    N, C, H, W = x.shape
+
+    # key here is that the normalization happens along 3 out of 4 axis of x,
+    # all images for a given channel.
+    # we can simply rearrange x to make it fit into a 2D format.
+    x = x.swapaxes(0, 1)
+    out, cache = batchnorm_forward(x.reshape((C, -1)).T,
+                                   gamma, beta, bn_param)
+    out = out.T.reshape((C, N, H, W)).swapaxes(0, 1)
+
+    # below is a manual implementation
+    # mode = bn_param.get('mode')
+    # assert(mode == 'train' or mode == 'test'), 'Invalid BatchNorm mode.'
+
+    # eps = bn_param.get('eps', 1e-8)
+    # momentum = bn_param.get('momentum', 0.9)
+    # running_mean = bn_param.get('running_mean', np.zeros(C, dtype=x.dtype))
+    # running_var = bn_param.get('running_var', np.zeros(C, dtype=x.dtype))
+
+    # if mode == 'train':
+    #     mean = x.mean(axis=(0, 2, 3))
+    #     var = x.var(axis=(0, 2, 3), ddof=1)
+
+    #     x_norm = (x - mean.reshape((1, C, 1, 1))) / \
+    #         np.sqrt(var.reshape((1, C, 1, 1)) + eps)
+    #     assert(x_norm.shape == x.shape), (x_norm.shape, x.shape)
+
+    #     out = gamma.reshape((1, C, 1, 1)) * x_norm + beta.reshape((1, C, 1, 1))
+
+    #     running_mean *= momentum
+    #     running_mean += (1 - momentum) * mean
+
+    #     running_var *= momentum
+    #     running_var += (1 - momentum) * var
+
+    #     bn_param['running_mean'] = running_mean
+    #     bn_param['running_var'] = running_var
+
+    #     cache = (x, mean, var, x_norm, gamma, eps)
+    # elif mode == 'test':
+    #     x_norm = (x - running_mean.reshape((1, C, 1, 1))) / \
+    #         np.sqrt(running_var.reshape((1, C, 1, 1)) + eps)
+    #     out = gamma.reshape((1, C, 1, 1)) * x_norm + beta.reshape((1, C, 1, 1))
+    # else:
+    #     pass
     ##########################################################################
     #                             END OF YOUR CODE                 #
     ##########################################################################
@@ -722,7 +767,14 @@ def spatial_batchnorm_backward(dout, cache):
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                    #
     ##########################################################################
-    pass
+    N, C, H, W = dout.shape
+
+    # treat each channel as an example
+    dx, dgamma, dbeta = batchnorm_backward_alt(dout.swapaxes(0, 1)
+                                               .reshape((C, -1)).T,
+                                               cache)
+    dx = dx.T.reshape(C, N, H, W).swapaxes(0, 1)
+
     ##########################################################################
     #                             END OF YOUR CODE                    #
     ##########################################################################

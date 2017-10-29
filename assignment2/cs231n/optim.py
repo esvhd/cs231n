@@ -122,6 +122,8 @@ def rmsprop(x, dx, config=None):
     cache += (1 - dr) * dx**2
     x += - lr * dx / (np.sqrt(cache) + eps)
     next_x = x
+
+    config['cache'] = cache
     ##########################################################################
     #                             END OF YOUR CODE                 #
     ##########################################################################
@@ -165,20 +167,22 @@ def adam(x, dx, config=None):
     beta2 = config.get('beta2')
     m = config.get('m')
     v = config.get('v')
-    t = config.get('t')
+    t = config.get('t') + 1
+    config['t'] = t
 
     m *= beta1
     m += (1 - beta1) * dx
     v *= beta2
     v += (1 - beta2) * dx**2
-    if not np.isclose(t, 0):
-        mb = m / (1 - beta1**t)
-        vb = v / (1 - beta2**t)
-    else:
-        mb = m
-        vb = v
+
+    mb = m / (1 - beta1**t)
+    vb = v / (1 - beta2**t)
+
     x += - lr * mb / (np.sqrt(vb) + eps)
     next_x = x
+
+    config['m'] = m
+    config['v'] = v
     ##########################################################################
     #                             END OF YOUR CODE                     #
     ##########################################################################
