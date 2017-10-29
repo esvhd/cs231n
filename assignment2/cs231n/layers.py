@@ -573,7 +573,39 @@ def max_pool_forward_naive(x, pool_param):
     ##########################################################################
     # TODO: Implement the max pooling forward pass               #
     ##########################################################################
-    pass
+    pw = pool_param.get('pool_width')
+    ph = pool_param.get('pool_height')
+    stride = pool_param.get('stride')
+
+    N, C, H, W = x.shape
+
+    H_out = 1 + (H - ph) // stride
+    W_out = 1 + (W - pw) // stride
+
+    out = np.zeros((N, C, H_out, W_out))
+
+    # local gradient
+    dx_local = np.zeros_like(x)
+
+    for n in range(N):
+        for hh in range(H_out):
+            for ww in range(W_out):
+                h_ind = hh * stride
+                w_ind = ww * stride
+                area = x[n, :, h_ind:h_ind + ph, w_ind:w_ind + pw]
+                assert(area.shape == (C, ph, pw))
+                pooled = np.max(np.max(area, axis=2), axis=1)
+                assert(pooled.shape == (C,)), pooled.shape
+                out[n, :, hh, ww] = pooled
+
+                # gradient is essentially 1 for the max value and 0 elsewhere
+                grad_area = dx_local[n, :, h_ind:h_ind + ph, w_ind:w_ind + pw]
+                for c in range(C):
+                    flag = np.isclose(area[c], pooled[c])
+                    assert(flag.shape == (ph, pw))
+                    grad_area[c][flag] += 1
+
+    pool_param['grad_local'] = dx_local
     ##########################################################################
     #                             END OF YOUR CODE                #
     ##########################################################################
@@ -596,7 +628,33 @@ def max_pool_backward_naive(dout, cache):
     ##########################################################################
     # TODO: Implement the max pooling backward pass              #
     ##########################################################################
-    pass
+    x, pool_param = cache
+    pw = pool_param.get('pool_width')
+    ph = pool_param.get('pool_height')
+    stride = pool_param.get('stride')
+    N, C, H, W = x.shape
+
+    # fast way below but will only have values if forward pass is called
+    # first.
+    grad_local = pool_param.get('grad_local')
+    assert(grad_local is not None), 'Forward pass not done? '
+    'Missing local gradient'
+
+    N, C, H_out, W_out = dout.shape
+    dx = np.zeros_like(x)
+
+    for n in range(N):
+        for c in range(C):
+            for hh in range(H_out):
+                for ww in range(W_out):
+                    h_ind = hh * stride
+                    w_ind = ww * stride
+                    dx_area = dx[n, c, h_ind:h_ind + ph, w_ind:w_ind + pw]
+                    loc_area = grad_local[n, c,
+                                          h_ind:h_ind + ph,
+                                          w_ind:w_ind + pw]
+                    dx_area += loc_area * dout[n, c, hh, ww]
+
     ##########################################################################
     #                             END OF YOUR CODE                  #
     ##########################################################################

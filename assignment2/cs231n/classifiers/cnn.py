@@ -55,12 +55,50 @@ class ThreeLayerConvNet(object):
         # biases   #
         # of the output affine layer.                                    #
         #######################################################################
-        pass
+
+        # conv layer
+        C, H, W = input_dim
+        W1 = np.random.randn(num_filters, C,
+                             filter_size, filter_size) * weight_scale
+        b1 = np.zeros(num_filters)
+
+        # hidden affine
+        # max pool output shape: (N, C, H_out, W_out)
+        # assume reshape to (N, C * H_out * W_out), max pool is 2x2 with
+        # stride 2
+        pad = (filter_size - 1) // 2
+        filter_stride = 1
+        max_pool_size = 2
+        max_pool_stride = 2
+
+        H_out_conv = 1 + (H + 2 * pad - filter_size) // filter_stride
+        W_out_conv = 1 + (W + 2 * pad - filter_size) // filter_stride
+
+        # max pool out shape
+        H_out = 1 + (H_out_conv - max_pool_size) // max_pool_stride
+        W_out = 1 + (W_out_conv - max_pool_size) // max_pool_stride
+
+        W2 = np.random.randn(num_filters * H_out * W_out,
+                             hidden_dim) * weight_scale
+        b2 = np.zeros(hidden_dim)
+
+        # output affine
+        # prevous output shape (N, hidden_dim)
+        W3 = np.random.randn(hidden_dim, num_classes) * weight_scale
+        b3 = np.zeros(num_classes)
+
+        self.params['W1'] = W1
+        self.params['W2'] = W2
+        self.params['W3'] = W3
+
+        self.params['b1'] = b1
+        self.params['b2'] = b2
+        self.params['b3'] = b3
         #######################################################################
         #                             END OF YOUR CODE                  #
         #######################################################################
 
-        for k, v in self.params.iteritems():
+        for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
 
     def loss(self, X, y=None):
@@ -75,7 +113,7 @@ class ThreeLayerConvNet(object):
 
         # pass conv_param to the forward pass for the convolutional layer
         filter_size = W1.shape[2]
-        conv_param = {'stride': 1, 'pad': (filter_size - 1) / 2}
+        conv_param = {'stride': 1, 'pad': (filter_size - 1) // 2}
 
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
@@ -88,7 +126,17 @@ class ThreeLayerConvNet(object):
         # scores          #
         # variable.                                                           #
         #######################################################################
-        pass
+        # conv - relu - pool
+        conv_out, conv_cache = conv_relu_pool_forward(X, W1, b1,
+                                                      conv_param,
+                                                      pool_param)
+
+        # affine - relu
+        hidden_out, hidden_cache = affine_relu_forward(conv_out, W2, b2)
+
+        # affine - softmax
+        # hidden_out.shape == N, hidden_dim
+        scores, scores_cache = affine_forward(hidden_out, W3, b3)
         #######################################################################
         #                             END OF YOUR CODE                        #
         #######################################################################
@@ -106,7 +154,33 @@ class ThreeLayerConvNet(object):
         # gradients #
         # for self.params[k]. Don't forget to add L2 regularization!          #
         #######################################################################
-        pass
+        loss, dscore = softmax_loss(scores, y)
+
+        # add regularization
+        reg = self.reg
+        loss += 0.5 * reg * (np.sum(W1 * W1) +
+                             np.sum(W2 * W2) +
+                             np.sum(W3 * W3))
+
+        dh, dW3, db3 = affine_backward(dscore, scores_cache)
+
+        dout, dW2, db2 = affine_relu_backward(dh, hidden_cache)
+
+        _, dW1, db1 = conv_relu_pool_backward(dout, conv_cache)
+
+        # add deriv from regularization
+        dW1 += reg * W1
+        dW2 += reg * W2
+        dW3 += reg * W3
+
+        grads['W1'] = dW1
+        grads['W2'] = dW2
+        grads['W3'] = dW3
+
+        grads['b1'] = db1
+        grads['b2'] = db2
+        grads['b3'] = db3
+
         #######################################################################
         #                             END OF YOUR CODE                       #
         #######################################################################
