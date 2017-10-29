@@ -58,8 +58,10 @@ class ThreeLayerConvNet(object):
 
         # conv layer
         C, H, W = input_dim
-        W1 = np.random.randn(num_filters, C,
-                             filter_size, filter_size) * weight_scale
+        # W1 = np.random.randn(num_filters, C,
+        #                      filter_size, filter_size) * weight_scale
+        W1 = np.random.normal(loc=0, scale=weight_scale,
+                              size=(num_filters, C, filter_size, filter_size))
         b1 = np.zeros(num_filters)
 
         # hidden affine
@@ -78,17 +80,22 @@ class ThreeLayerConvNet(object):
         H_out = 1 + (H_out_conv - max_pool_size) // max_pool_stride
         W_out = 1 + (W_out_conv - max_pool_size) // max_pool_stride
 
-	# this assertion only works with the current filter/pool settings
-        assert(H_out == H // 2), (H_out, H // 2)
-        assert(W_out == W // 2), (W_out, W // 2)
+        # this assertion only works with the filter/pool settings in the
+        # assignment
+        # assert(H_out == H // 2), (H_out, H // 2)
+        # assert(W_out == W // 2), (W_out, W // 2)
 
-        W2 = np.random.randn(num_filters * H_out * W_out,
-                             hidden_dim) * weight_scale
+        # W2 = np.random.randn(num_filters * H_out * W_out,
+        #                      hidden_dim) * weight_scale
+        W2 = np.random.normal(0, scale=weight_scale,
+                              size=(num_filters * H_out * W_out, hidden_dim))
         b2 = np.zeros(hidden_dim)
 
         # output affine
         # prevous output shape (N, hidden_dim)
-        W3 = np.random.randn(hidden_dim, num_classes) * weight_scale
+        # W3 = np.random.randn(hidden_dim, num_classes) * weight_scale
+        W3 = np.random.normal(0, scale=weight_scale,
+                              size=(hidden_dim, num_classes))
         b3 = np.zeros(num_classes)
 
         self.params['W1'] = W1
