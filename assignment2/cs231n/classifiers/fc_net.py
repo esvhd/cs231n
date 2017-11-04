@@ -247,6 +247,8 @@ class FullyConnectedNet(object):
         self.input_dim = input_dim
         self.output_dim = num_classes
 
+        net_dim = [input_dim, hidden_dims, output_dim]
+
         L = len(hidden_dims)
         # initialize weights, indexing starts from 1
         for i in range(1, self.num_layers + 1):
@@ -263,6 +265,11 @@ class FullyConnectedNet(object):
             # print(i, (D, M))
             self.params['W' + str(i)] = np.random.randn(D, M) * weight_scale
             self.params['b' + str(i)] = np.zeros(M)
+
+            if self.use_batchnorm and (i < self.num_layers) and i > 1:
+                # TODO here, need to make sure indexing works.
+                self.params['gamma' + str(i)] = np.ones(net_dim[i])
+                self.params['beta' + str(i)] = np.zeros(net_dim[i])
         #######################################################################
         #                             END OF YOUR CODE                   #
         #######################################################################
@@ -334,6 +341,7 @@ class FullyConnectedNet(object):
         affine_cache = {}
         act_cache = {}
         dropout_cache = {}
+        # bn_cache = {}
 
         for i in range(1, self.num_layers):
             W = self.params.get('W' + str(i))
@@ -345,8 +353,12 @@ class FullyConnectedNet(object):
                 assert(W.shape == (h_prev.shape[1], self.output_dim))
             assert(b is not None)
 
-            z, a_cache = affine_forward(h_prev, W, b)
-            h_prev, h_cache = relu_forward(z)
+            # batchnorm
+            if self.use_batchnorm:
+                h_prev, h_cache = affine_batchnorm_relu_forward(x, W, b)
+            else:
+                z, a_cache = affine_forward(h_prev, W, b)
+                h_prev, h_cache = relu_forward(z)
 
             # dropout
             if self.use_dropout:
