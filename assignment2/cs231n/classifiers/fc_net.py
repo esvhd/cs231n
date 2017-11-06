@@ -247,7 +247,7 @@ class FullyConnectedNet(object):
         self.input_dim = input_dim
         self.output_dim = num_classes
 
-        net_dim = [input_dim, hidden_dims, output_dim]
+        net_dim = [input_dim] + hidden_dims + [num_classes]
 
         L = len(hidden_dims)
         # initialize weights, indexing starts from 1
@@ -266,8 +266,9 @@ class FullyConnectedNet(object):
             self.params['W' + str(i)] = np.random.randn(D, M) * weight_scale
             self.params['b' + str(i)] = np.zeros(M)
 
-            if self.use_batchnorm and (i < self.num_layers) and i > 1:
-                # TODO here, need to make sure indexing works.
+            if self.use_batchnorm and (i < self.num_layers):
+                # batch norm applied except in the output layer
+                # print('layer {} expected bn dim: {}'.format(i, net_dim[i]))
                 self.params['gamma' + str(i)] = np.ones(net_dim[i])
                 self.params['beta' + str(i)] = np.zeros(net_dim[i])
         #######################################################################
@@ -338,7 +339,7 @@ class FullyConnectedNet(object):
         num_train = X.shape[0]
         h_prev = X.reshape(num_train, -1)
         W_sums = 0
-        affine_cache = {}
+        # affine_cache = {}
         act_cache = {}
         dropout_cache = {}
         # bn_cache = {}
@@ -355,10 +356,17 @@ class FullyConnectedNet(object):
 
             # batchnorm
             if self.use_batchnorm:
-                h_prev, h_cache = affine_batchnorm_relu_forward(x, W, b)
+                gamma = self.params.get('gamma' + str(i))
+                beta = self.params.get('beta' + str(i))
+                h_prev, h_cache = \
+                    affine_batchnorm_relu_forward(h_prev, W, b,
+                                                  gamma,
+                                                  beta,
+                                                  self.bn_params[i - 1])
             else:
-                z, a_cache = affine_forward(h_prev, W, b)
-                h_prev, h_cache = relu_forward(z)
+                # z, a_cache = affine_forward(h_prev, W, b)
+                # h_prev, h_cache = relu_forward(z)
+                h_prev, h_cache = affine_relu_forward(h_prev, W, b)
 
             # dropout
             if self.use_dropout:
@@ -368,7 +376,7 @@ class FullyConnectedNet(object):
             # accumulate for regularization
             W_sums += np.sum(W * W)
 
-            affine_cache[i] = a_cache
+            # affine_cache[i] = a_cache
             act_cache[i] = h_cache
 
         # last layer, softmax head
@@ -445,23 +453,34 @@ class FullyConnectedNet(object):
         dout = dxL
         for ii in reversed(range(1, self.num_layers)):
             # print(ii)
+            W = self.params.get('W' + str(ii))
+
             if self.use_dropout:
                 u_cache = dropout_cache.get(ii)
                 dout = dropout_backward(dout, u_cache)
 
-            x = act_cache.get(ii)
-            assert(x is not None)
-            drelu = relu_backward(dout, x)
+            h_cache = act_cache[ii]
+            if self.use_batchnorm:
+                dout, dWL, dbL, dgamma, dbeta = \
+                    affine_batchnorm_relu_backward(dout, h_cache)
 
-            a_cache = affine_cache.get(ii)
-            assert(a_cache is not None)
-            dout, dWL, dbL = affine_backward(drelu, a_cache)
-            # dout is passed to the next rele_backward
+                # update dgamma, dbeta
+                grads['gamma' + str(ii)] = dgamma
+                grads['beta' + str(ii)] = dbeta
+            else:
+                # x = act_cache.get(ii)
+                # assert(x is not None)
+                # drelu = relu_backward(dout, x)
+
+                # a_cache = affine_cache.get(ii)
+                # assert(a_cache is not None)
+                # dout, dWL, dbL = affine_backward(drelu, a_cache)
+
+                # dout is passed to the next rele_backward
+                dout, dWL, dbL = affine_relu_backward(dout, h_cache)
 
             # accumulate gradient
-            _, W, _ = a_cache
-            W2 = self.params['W' + str(ii)]
-            assert(np.allclose(W, W2))
+            assert(W.shape == dWL.shape)
 
             # doing averaging here failed grad_checks, but it should be
             # the same. Can write a test case like the one used for the last
