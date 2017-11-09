@@ -153,14 +153,6 @@ def rnn_forward(x, h0, Wx, Wh, b):
     return h, cache
 
 
-def accumlate_grad(dx, existing=None):
-    if existing is None:
-        return dx
-    else:
-        existing += dx
-        return existing
-
-
 def rnn_backward(dh, cache):
     """
     Compute the backward pass for a vanilla RNN over an entire sequence of
@@ -185,22 +177,30 @@ def rnn_backward(dh, cache):
     N, T, H = dh.shape
     dh1 = dh.swapaxes(0, 1)
 
+    Wx, Wh, x, prev_h, z = cache[-1]
+    _, D = x.shape
+
+    dx = np.zeros((T, N, D))
+    dh0 = np.zeros((N, H))
+    dWx = np.zeros_like(Wx)
+    dWh = np.zeros_like(Wh)
+    db = np.zeros(H)
+    dprev_h = np.zeros_like(prev_h)
+
     for i in reversed(range(T)):
         cache_t = cache[i]
-        dnext_ht = dh1[i]
 
-        dxt, dh0t, dWxt, dWht, dbt = rnn_step_backward(dnext_ht, cache_t)
+        # gradient for upstream h is combined together
+        dnext_ht = dh1[i] + dprev_h
 
-        dh0 = accumlate_grad(dh0t, dh0)
-        dWx = accumlate_grad(dWxt, dWx)
-        dWh = accumlate_grad(dWht, dWh)
-        db = accumlate_grad(dbt, db)
+        dxt, dprev_h, dWxt, dWht, dbt = rnn_step_backward(dnext_ht, cache_t)
 
-        D, _ = dWx.shape
-        if dx is None:
-            dx = np.zeros((T, N, D))
+        dWx += dWxt
+        dWh += dWht
+        db += dbt
         dx[i] += dxt
 
+    dh0 += dprev_h
     dx = dx.swapaxes(0, 1)
     ##########################################################################
     #                               END OF YOUR CODE                          #
@@ -212,13 +212,11 @@ def word_embedding_forward(x, W):
     """
     Forward pass for word embeddings. We operate on minibatches of size N where
     each sequence has length T. We assume a vocabulary of V words, assigning
-    each
-    to a vector of dimension D.
+    each to a vector of dimension D.
 
     Inputs:
     - x: Integer array of shape (N, T) giving indices of words. Each element
-    idx
-      of x muxt be in the range 0 <= idx < V.
+    idx of x must be in the range 0 <= idx < V.
     - W: Weight matrix of shape (V, D) giving word vectors for all words.
 
     Returns a tuple of:
@@ -231,7 +229,11 @@ def word_embedding_forward(x, W):
     #                                                                        #
     # HINT: This should be very simple.                                       #
     ##########################################################################
-    pass
+    N, T = x.shape
+    _, D = W.shape
+    # out = np.zeros((N * T, D))
+    out = W[x.reshape(1, -1)].reshape((N, T, D))
+    cache = (x, W)
     ##########################################################################
     #                               END OF YOUR CODE                          #
     ##########################################################################
@@ -259,7 +261,14 @@ def word_embedding_backward(dout, cache):
     #                                                                         #
     # HINT: Look up the function np.add.at                                    #
     ##########################################################################
-    pass
+    x, W = cache
+    N, T, D = dout.shape
+
+    # essentially using numbers to represent words. Goal of training is to
+    # figure out the best number to represent each word.
+
+    dW = np.zeros_like(W)
+    np.add.at(dW, x.reshape(1, -1), dout.reshape(N * T, D))
     ##########################################################################
     #                               END OF YOUR CODE                         #
     ##########################################################################
@@ -334,7 +343,7 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     ##########################################################################
     # TODO: Implement the backward pass for a single timestep of an LSTM.   #
     #                                                                        #
-    # HINT: For sigmoid and tanh you can compute local derivatives in terms of  #
+    # HINT: For sigmoid and tanh you can compute local derivatives in terms of#
     # the output value from the nonlinearity.                               #
     ##########################################################################
     pass
@@ -347,10 +356,11 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
 
 def lstm_forward(x, h0, Wx, Wh, b):
     """
-    Forward pass for an LSTM over an entire sequence of data. We assume an input
+    Forward pass for an LSTM over an entire sequence of data. We assume an
+    input
     sequence composed of T vectors, each of dimension D. The LSTM uses a hidden
-    size of H, and we work over a minibatch containing N sequences. After running
-    the LSTM forward, we return the hidden states for all timesteps.
+    size of H, and we work over a minibatch containing N sequences. After
+    running the LSTM forward, we return the hidden states for all timesteps.
 
     Note that the initial cell state is passed as input, but the initial cell
     state is set to zero. Also note that the cell state is not returned; it is
