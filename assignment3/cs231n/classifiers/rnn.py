@@ -278,7 +278,7 @@ class CaptioningRNN(object):
 
         # initialize
         captions[:, 0] = self._start
-
+        word_embed = W_embed[captions[:, 0]]
         h0, _ = affine_forward(features, W_proj, b_proj)
 
         # iterate throught the max steps
@@ -286,23 +286,35 @@ class CaptioningRNN(object):
         for t in range(max_length):
             # input to word_embedding_forward x.shape = (N, T)
             # word_embed.shape == (N, T, D)
-            # How do I create the first input to word_embedding_foward?
-            word_embed, _ = word_embedding_forward(captions, W_embed)
-            # _, T, _ = word_embed.shape
 
-            prev_h, _ = rnn_step_forward(word_embed[:, t, :], prev_h,
-                                         Wx, Wh, b)
+            # Calling word_embedding forward would compute all embedding
+            # again, this is not the most efficient way to do it.
+            # we only need the embedding for the current word.
 
-            scores, _ = temporal_affine_forward(prev_h, )
+            # slow implementation
+            # word_embed, _ = word_embedding_forward(captions, W_embed)
+            # # _, T, _ = word_embed.shape
+            # prev_h, _ = rnn_step_forward(word_embed[:, t, :], prev_h,
+            #                              Wx, Wh, b)
+            # # prev_h.shape == (N, H)
+
+            prev_h, _ = rnn_step_forward(word_embed, prev_h, Wx, Wh, b)
+
+            # scores, _ = temporal_affine_forward(prev_h, W_vocab, b_vocab)
+            scores, _ = affine_forward(prev_h, W_vocab, b_vocab)
             # score.shape == (N, T, M)
 
             # find the max score for time step t for all training examples
-            idx = np.argmax(scores[:, t, :], axis=1)
+            # idx is basically the index for the next word which should be
+            # used as the next caption
+            idx = np.argmax(scores, axis=1)
             assert(idx.shape == (N,))
 
-            # sample word, write to the next place in word embedding?
+            # write to the next place in word embedding
             if t < max_length - 1:
-                captions[:, t+1] = self.idx_to_word[idx]
+                captions[:, t + 1] = idx
+                # update next embedding
+                word_embed = W_embed[idx]
 
         #######################################################################
         #                             END OF YOUR CODE                   #
