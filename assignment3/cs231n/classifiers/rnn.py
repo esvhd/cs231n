@@ -23,8 +23,7 @@ class CaptioningRNN(object):
 
         Inputs:
         - word_to_idx: A dictionary giving the vocabulary. It contains V
-        entries,
-          and maps each string to a unique integer in the range [0, V).
+        entries, and maps each string to a unique integer in the range [0, V).
         - input_dim: Dimension D of input image feature vectors.
         - wordvec_dim: Dimension W of word vectors.
         - hidden_dim: Dimension H for the hidden state of the RNN.
@@ -169,7 +168,7 @@ class CaptioningRNN(object):
             # LSTM
             pass
 
-        # 4)
+        # 4) compute word scores
         temporal, temp_cache = temporal_affine_forward(hidden,
                                                        W_vocab,
                                                        b_vocab)
@@ -219,13 +218,12 @@ class CaptioningRNN(object):
         feature vectors.
 
         At each timestep, we embed the current word, pass it and the previous
-        hidden
-        state to the RNN to get the next hidden state, use the hidden state to
-        get
-        scores for all vocab words, and choose the word with the highest score
-        as the next word. The initial hidden state is computed by applying an
-        affine transform to the input image features, and the initial word is
-        the <START> token.
+        hidden state to the RNN to get the next hidden state,
+        use the hidden state to get scores for all vocab words,
+        and choose the word with the highest score as the next word.
+
+        The initial hidden state is computed by applying an affine transform
+        to the input image features, and the initial word is the <START> token.
 
         For LSTMs you will also have to keep track of the cell state; in that
         case the initial cell state should be zero.
@@ -257,14 +255,19 @@ class CaptioningRNN(object):
         # to  #
         # the RNN should be the <START> token; its value is stored in the    #
         # variable self._start. At each timestep you will need to do to:     #
+
         # (1) Embed the previous word using the learned word embeddings      #
+
         # (2) Make an RNN step using the previous hidden state and the
         # embedded current word to get the next hidden state.           #
+
         # (3) Apply the learned affine transformation to the next hidden state
         # to get scores for all words in the vocabulary                  #
+
         # (4) Select the word with the highest score as the next word, writing
         # it to the appropriate slot in the captions variable         #
         #                                                                   #
+
         # For simplicity, you do not need to stop generating after an <END>
         # token is sampled, but you can if you want to.                       #
         #                                                             #
@@ -274,18 +277,32 @@ class CaptioningRNN(object):
         #######################################################################
 
         # initialize
-        h0, _ = affine_forward(feature, W_proj, b_proj)
-        word_embed, _ = word_embedding_forward(self._start, W_embed)
-        _, T, _ = word_embed.shape
+        captions[:, 0] = self._start
+
+        h0, _ = affine_forward(features, W_proj, b_proj)
 
         # iterate throught the max steps
         prev_h = h0
-        for t in range(T):
+        for t in range(max_length):
+            # input to word_embedding_forward x.shape = (N, T)
+            # word_embed.shape == (N, T, D)
+            # How do I create the first input to word_embedding_foward?
+            word_embed, _ = word_embedding_forward(captions, W_embed)
+            # _, T, _ = word_embed.shape
+
             prev_h, _ = rnn_step_forward(word_embed[:, t, :], prev_h,
                                          Wx, Wh, b)
 
             scores, _ = temporal_affine_forward(prev_h, )
-            idx = np.argmax(scores)
+            # score.shape == (N, T, M)
+
+            # find the max score for time step t for all training examples
+            idx = np.argmax(scores[:, t, :], axis=1)
+            assert(idx.shape == (N,))
+
+            # sample word, write to the next place in word embedding?
+            if t < max_length - 1:
+                captions[:, t+1] = self.idx_to_word[idx]
 
         #######################################################################
         #                             END OF YOUR CODE                   #

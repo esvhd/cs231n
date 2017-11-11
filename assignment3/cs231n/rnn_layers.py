@@ -535,19 +535,16 @@ def temporal_softmax_loss(x, y, mask, verbose=False):
     A temporal version of softmax loss for use in RNNs. We assume that we are
     making predictions over a vocabulary of size V for each timestep of a
     timeseries of length T, over a minibatch of size N. The input x gives
-    scores
-    for all vocabulary elements at all timesteps, and y gives the indices of
-    the
-    ground-truth element at each timestep. We use a cross-entropy loss at each
-    timestep, summing the loss over all timesteps and averaging across the
-    minibatch.
+    scores for all vocabulary elements at all timesteps, and y gives the
+    indices of the ground-truth element at each timestep. We use a
+    cross-entropy loss at each timestep, summing the loss over all timesteps
+     and averaging across the minibatch.
 
     As an additional complication, we may want to ignore the model output at
-    some
-    timesteps, since sequences of different length may have been combined into
-    a
-    minibatch and padded with NULL tokens. The optional mask argument tells us
-    which elements should contribute to the loss.
+    some timesteps, since sequences of different length may have been combined
+    into a minibatch and padded with NULL tokens.
+    The optional mask argument tells us which elements should contribute to
+    the loss.
 
     Inputs:
     - x: Input scores, of shape (N, T, V)
