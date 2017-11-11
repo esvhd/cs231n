@@ -154,8 +154,9 @@ class CaptioningRNN(object):
         _, H = W_proj.shape
 
         # step 1
-        h0 = np.dot(features, W_proj) + b_proj
-        assert(h0.shape == (N, H))
+        # h0 = np.dot(features, W_proj) + b_proj
+        # assert(h0.shape == (N, H))
+        h0, affine_cache = affine_forward(features, W_proj, b_proj)
 
         # 2)
         word_embed, embed_cache = word_embedding_forward(captions_in, W_embed)
@@ -175,7 +176,36 @@ class CaptioningRNN(object):
         # 5)
         loss, dscores = temporal_softmax_loss(temporal, captions_out, mask)
 
-        # TODO gradients
+        # compute gradients
+        dh, dW_vocab, db_vocab = temporal_affine_backward(dscores, temp_cache)
+
+        dx, dh0, dWx, dWh, db = rnn_backward(dh, hidden_cache)
+
+        dW_embed = word_embedding_backward(dx, embed_cache)
+
+        dfeatures, dW_proj, db_proj = affine_backward(dh0, affine_cache)
+
+        # dfeats = np.dot(dh0, W_proj.T)
+        assert(dfeatures.shape == features.shape)
+
+        # dWproj = np.dot(features.T, dh0)
+        assert(dW_proj.shape == W_proj.shape)
+
+        # db_proj = np.sum(dh0, axis=0)
+        assert(db_proj.shape == (H,))
+
+        # update
+        # grads['features'] = dfeatures
+        grads['W_proj'] = dW_proj
+        grads['b_proj'] = db_proj
+
+        grads['W_embed'] = dW_embed
+        grads['Wx'] = dWx
+        grads['Wh'] = dWh
+        grads['b'] = db
+
+        grads['W_vocab'] = dW_vocab
+        grads['b_vocab'] = db_vocab
 
         #######################################################################
         #                             END OF YOUR CODE                        #
@@ -236,14 +266,27 @@ class CaptioningRNN(object):
         # it to the appropriate slot in the captions variable         #
         #                                                                   #
         # For simplicity, you do not need to stop generating after an <END>
-        # token #
-        # is sampled, but you can if you want to.                       #
+        # token is sampled, but you can if you want to.                       #
         #                                                             #
         # HINT: You will not be able to use the rnn_forward or lstm_forward  #
         # functions; you'll need to call rnn_step_forward or lstm_step_forward
         # in a loop.                                                 #
         #######################################################################
-        pass
+
+        # initialize
+        h0, _ = affine_forward(feature, W_proj, b_proj)
+        word_embed, _ = word_embedding_forward(self._start, W_embed)
+        _, T, _ = word_embed.shape
+
+        # iterate throught the max steps
+        prev_h = h0
+        for t in range(T):
+            prev_h, _ = rnn_step_forward(word_embed[:, t, :], prev_h,
+                                         Wx, Wh, b)
+
+            scores, _ = temporal_affine_forward(prev_h, )
+            idx = np.argmax(scores)
+
         #######################################################################
         #                             END OF YOUR CODE                   #
         #######################################################################
