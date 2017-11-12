@@ -353,6 +353,10 @@ def sigmoid(x):
     return top / (1 + z)
 
 
+def dsigmoid(x):
+    return sigmoid(x) * (1 - sigmoid(x))
+
+
 def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     """
     Forward pass for a single timestep of an LSTM.
@@ -378,12 +382,58 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     # TODO: Implement the forward pass for a single timestep of an LSTM.     #
     # You may want to use the numerically stable sigmoid implementation above.#
     ##########################################################################
-    pass
+
+    N, D = x.shape
+    _, H = prev_h.shape
+
+    # computes ifog in one pop
+    z = np.dot(x, Wx) + np.dot(prev_h, Wh) + b
+    assert(z.shape == (N, 4 * H))
+
+    ui = z[:, :H]
+    uf = z[:, H:2 * H]
+    uo = z[:, 2 * H:3 * H]
+    ug = z[:, 3 * H:]
+
+    i = sigmoid(ui)
+    f = sigmoid(uf)
+    o = sigmoid(uo)
+    g = np.tanh(ug)
+
+    next_c = f * prev_c + i * g
+    next_h = o * np.tanh(next_c)
+
+    cache = (x, i, f, o, g,
+             prev_h, prev_c, Wx, Wh, b, next_c)
+
     ##########################################################################
     #                               END OF YOUR CODE                         #
     ##########################################################################
 
     return next_h, next_c, cache
+
+
+def dtanh(x):
+    return (1 - np.tanh(x)**2)
+
+
+def lstm_ifo_gates_backward(dout, u, x, prev_h):
+    N, D = x.shape
+    _, H = prev_h.shape
+
+    du = dsigmoid(u) * dout
+    assert(du.shape == (N, H))
+
+    dWx = np.dot(x.T, du)
+    assert(dWx.shape == (D, H))
+
+    dWh = np.dot(prev_h.T, du)
+    assert(dWh.shape == (H, H))
+
+    db = np.sum(du, axis=0)
+    assert(db.shape == (H,))
+
+    return du, dWx, dWh, db
 
 
 def lstm_step_backward(dnext_h, dnext_c, cache):
@@ -403,14 +453,102 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     - dWh: Gradient of hidden-to-hidden weights, of shape (H, 4H)
     - db: Gradient of biases, of shape (4H,)
     """
-    dx, dh, dc, dWx, dWh, db = None, None, None, None, None, None
+    # dx, dh, dc, dWx, dWh, db = None, None, None, None, None, None
     ##########################################################################
     # TODO: Implement the backward pass for a single timestep of an LSTM.   #
     #                                                                        #
     # HINT: For sigmoid and tanh you can compute local derivatives in terms of#
     # the output value from the nonlinearity.                               #
     ##########################################################################
-    pass
+    x, i, f, o, g, \
+        prev_h, prev_c, Wx, Wh, b, next_c = cache
+
+    N, D = x.shape
+    _, H = prev_h.shape
+
+    # allocate memory for du first. Array memory in numpy must be continuous,
+    # therefore concatenating separately allocated arrays is not memory
+    # efficient.
+    du = np.zeros((N, 4 * H))
+
+    # dc = dnext_c + dnext_h * o * dtanh(prev_c)
+    # dnext_c here below is what I got wrong.
+    dnext_c += dnext_h * o * dtanh(next_c)
+
+    dprev_c = f * dnext_c
+
+    # compute di, df, do, dg
+    di = dnext_c * g
+    df = dnext_c * prev_c
+    dg = dnext_c * i
+
+    do = dnext_h * np.tanh(next_c)
+    assert(do.shape == (N, H))
+
+    # backprop for ifog gates
+    # dsigmoid * dupstream
+    du[:, :H] = i * (1 - i) * di
+    du[:, H:2 * H] = f * (1 - f) * df
+    du[:, 2 * H:3 * H] = o * (1 - o) * do
+    # dug = dtanh(ug) * dg
+    du[:, 3 * H:] = dg * (1 - g**2)
+
+    # du = np.concatenate((dui, duf, duo, dug), axis=1)
+    # assert(du.shape == (N, 4 * H))
+
+    # computer dx, dprev_h, dWh, dWx, db
+    dx = du.dot(Wx.T)
+    assert(dx.shape == (N, D))
+
+    dWx = x.T.dot(du)
+    assert(dWx.shape == Wx.shape)
+
+    dWh = prev_h.T.dot(du)
+    assert(dWh.shape == (H, 4 * H))
+
+    dprev_h = du.dot(Wh.T)
+    assert(dprev_h.shape == prev_h.shape)
+
+    db = np.sum(du, axis=0)
+    assert(db.shape == (4 * H, ))
+
+    # dWxg = x.T.dot(dug)
+    # assert(dWxg.shape == (D, H))
+
+    # dWhg = prev_h.T.dot(dug)
+    # assert(dWhg.shape == (H, H))
+
+    # dbg = np.sum(dug, axis=0)
+    # assert(dbg.shape == (H,))
+
+    # # backprop for i, f, o gate
+    # duo, dWxo, dWho, dbo = lstm_ifo_gates_backward(do, uo, x, prev_h)
+    # dui, dWxi, dWhi, dbi = lstm_ifo_gates_backward(di, ui, x, prev_h)
+    # duf, dWxf, dWhf, dbf = lstm_ifo_gates_backward(df, uf, x, prev_h)
+
+    # # compute dx
+    # Wxi = Wx[:, :H]
+    # Wxf = Wx[:, H:2 * H]
+    # Wxo = Wx[:, 2 * H:3 * H]
+    # Wxg = Wx[:, 3 * H:]
+
+    # dx = np.dot(dui, Wxi.T) + np.dot(duf, Wxf.T) + np.dot(duo, Wxo.T) +\
+    #     np.dot(dug, Wxg.T)
+    # assert(dx.shape == x.shape)
+
+    # # compute dh
+    # Whi = Wh[:, :H]
+    # Whf = Wh[:, H:2 * H]
+    # Who = Wh[:, 2 * H:3 * H]
+    # Whg = Wh[:, 3 * H:]
+
+    # dprev_h = dui.dot(Whi.T) + duf.dot(Whf.T) + duo.dot(Who.T) + dug.dot(Whg.T)
+    # assert(dprev_h.shape == prev_h.shape)
+
+    # # combine for Wx, Wh, b
+    # dWx = np.concatenate((dWxi, dWxf, dWxo, dWxg), axis=1)
+    # dWh = np.concatenate((dWhi, dWhf, dWho, dWhg), axis=1)
+    # db = np.concatenate((dbi, dbf, dbo, dbg))
     ##########################################################################
     #                               END OF YOUR CODE                         #
     ##########################################################################
@@ -446,7 +584,27 @@ def lstm_forward(x, h0, Wx, Wh, b):
     # TODO: Implement the forward pass for an LSTM over an entire timeseries.#
     # You should use the lstm_step_forward function that you just defined.   #
     ##########################################################################
-    pass
+    N, T, D = x.shape
+    _, H = h0.shape
+
+    h = np.zeros((N, T, H))
+    h[:, 0, :] = h0
+
+    cache = []
+
+    prev_c = 0.
+    for t in range(T):
+        if t < 1:
+            prev_h = h0
+        else:
+            prev_h = h[:, t - 1, :]
+
+        next_h, prev_c, step_cache = lstm_step_forward(x[:, t, :],
+                                                       prev_h, prev_c,
+                                                       Wx, Wh, b)
+
+        cache.append(step_cache)
+        h[:, t, :] = next_h
     ##########################################################################
     #                               END OF YOUR CODE                         #
     ##########################################################################
@@ -474,7 +632,37 @@ def lstm_backward(dh, cache):
     # TODO: Implement the backward pass for an LSTM over an entire timeseries.#
     # You should use the lstm_step_backward function that you just defined.  #
     ##########################################################################
-    pass
+    N, T, H = dh.shape
+    # data shape
+    _, D = cache[0][0].shape
+
+    dx = np.zeros((T, N, D))
+    # dh0 = np.zeros((N, H))
+    dWx = np.zeros((D, 4 * H))
+    dWh = np.zeros((H, 4 * H))
+    db = np.zeros(4 * H)
+
+    dprev_c = np.zeros((N, H))
+    dprev_h = 0
+
+    dh = dh.swapaxes(0, 1)
+
+    for t in reversed(range(T)):
+        # next_h gradient is summed over upstream and previous step
+        dnext_h = dh[t] + dprev_h
+
+        # print(dnext_h.shape)
+
+        dxt, dprev_h, dprev_c, dWxt, dWht, dbt = \
+            lstm_step_backward(dnext_h, dprev_c, cache[t])
+
+        dx[t] += dxt
+        dWx += dWxt
+        dWh += dWht
+        db += dbt
+
+    dh0 = dprev_h
+    dx = dx.swapaxes(0, 1)
     ##########################################################################
     #                               END OF YOUR CODE                         #
     ##########################################################################

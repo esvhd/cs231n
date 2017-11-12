@@ -166,7 +166,8 @@ class CaptioningRNN(object):
                                                Wx, Wh, b)
         else:
             # LSTM
-            pass
+            hidden, hidden_cache = lstm_forward(word_embed, h0,
+                                                Wx, Wh, b)
 
         # 4) compute word scores
         temporal, temp_cache = temporal_affine_forward(hidden,
@@ -178,7 +179,11 @@ class CaptioningRNN(object):
         # compute gradients
         dh, dW_vocab, db_vocab = temporal_affine_backward(dscores, temp_cache)
 
-        dx, dh0, dWx, dWh, db = rnn_backward(dh, hidden_cache)
+        if self.cell_type == 'rnn':
+            dx, dh0, dWx, dWh, db = rnn_backward(dh, hidden_cache)
+        else:
+            # LSTM
+            dx, dh0, dWx, dWh, db = lstm_backward(dh, hidden_cache)
 
         dW_embed = word_embedding_backward(dx, embed_cache)
 
@@ -283,6 +288,7 @@ class CaptioningRNN(object):
 
         # iterate throught the max steps
         prev_h = h0
+        prev_c = 0
         for t in range(max_length):
             # input to word_embedding_forward x.shape = (N, T)
             # word_embed.shape == (N, T, D)
@@ -298,7 +304,13 @@ class CaptioningRNN(object):
             #                              Wx, Wh, b)
             # # prev_h.shape == (N, H)
 
-            prev_h, _ = rnn_step_forward(word_embed, prev_h, Wx, Wh, b)
+            if self.cell_type == 'rnn':
+                prev_h, _ = rnn_step_forward(word_embed, prev_h, Wx, Wh, b)
+            else:
+                prev_h, prev_c, _ = lstm_step_forward(word_embed,
+                                                      prev_h,
+                                                      prev_c,
+                                                      Wx, Wh, b)
 
             # scores, _ = temporal_affine_forward(prev_h, W_vocab, b_vocab)
             scores, _ = affine_forward(prev_h, W_vocab, b_vocab)
