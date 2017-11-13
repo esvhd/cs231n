@@ -8,15 +8,16 @@ from cs231n.layer_utils import *
 
 class PretrainedCNN(object):
 
-    def __init__(self, dtype=np.float32, num_classes=100, input_size=64, h5_file=None):
+    def __init__(self, dtype=np.float32, num_classes=100, input_size=64,
+                 h5_file=None):
         self.dtype = dtype
         self.conv_params = []
         self.input_size = input_size
         self.num_classes = num_classes
 
-        # TODO: In the future it would be nice if the architecture could be loaded from
-        # the HDF5 file rather than being hardcoded. For now this will have to
-        # do.
+        # TODO: In the future it would be nice if the architecture could be
+        # loaded from the HDF5 file rather than being hardcoded.
+        # For now this will have to do.
         self.conv_params.append({'stride': 2, 'pad': 2})
         self.conv_params.append({'stride': 1, 'pad': 1})
         self.conv_params.append({'stride': 2, 'pad': 1})
@@ -36,7 +37,8 @@ class PretrainedCNN(object):
         cur_size = input_size
         prev_dim = 3
         self.params = {}
-        for i, (f, next_dim) in enumerate(zip(self.filter_sizes, self.num_filters)):
+        for i, (f, next_dim) in enumerate(zip(self.filter_sizes,
+                                              self.num_filters)):
             fan_in = f * f * prev_dim
             self.params['W%d' % (i + 1)] = np.sqrt(2.0 / fan_in) * \
                 np.random.randn(next_dim, prev_dim, f, f)
@@ -51,7 +53,7 @@ class PretrainedCNN(object):
         # Add a fully-connected layers
         fan_in = cur_size * cur_size * self.num_filters[-1]
         self.params['W%d' % (i + 2)] = np.sqrt(2.0 / fan_in) * \
-            np.random.randn(fan_in, hidden_dim)
+            np.random.randn(int(fan_in), hidden_dim)
         self.params['b%d' % (i + 2)] = np.zeros(hidden_dim)
         self.params['gamma%d' % (i + 2)] = np.ones(hidden_dim)
         self.params['beta%d' % (i + 2)] = np.zeros(hidden_dim)
@@ -75,8 +77,8 @@ class PretrainedCNN(object):
         - verbose: Whether to print debugging info
         """
 
-        # Before loading weights we need to make a dummy forward pass to initialize
-        # the running averages in the bn_pararams
+        # Before loading weights we need to make a dummy forward pass to
+        # initialize the running averages in the bn_pararams
         x = np.random.randn(1, 3, self.input_size, self.input_size)
         y = np.random.randint(self.num_classes, size=1)
         loss, grads = self.loss(x, y)
@@ -111,33 +113,35 @@ class PretrainedCNN(object):
 
     def forward(self, X, start=None, end=None, mode='test'):
         """
-        Run part of the model forward, starting and ending at an arbitrary layer,
-        in either training mode or testing mode.
+        Run part of the model forward, starting and ending at an arbitrary
+        layer, in either training mode or testing mode.
 
-        You can pass arbitrary input to the starting layer, and you will receive
-        output from the ending layer and a cache object that can be used to run
-        the model backward over the same set of layers.
+        You can pass arbitrary input to the starting layer, and you will
+        receive output from the ending layer and a cache object that can be
+        used to run the model backward over the same set of layers.
 
-        For the purposes of this function, a "layer" is one of the following blocks:
+        For the purposes of this function, a "layer" is one of the following
+        blocks:
 
         [conv - spatial batchnorm - relu] (There are 9 of these)
         [affine - batchnorm - relu] (There is one of these)
         [affine] (There is one of these)
 
         Inputs:
-        - X: The input to the starting layer. If start=0, then this should be an
-          array of shape (N, C, 64, 64).
-        - start: The index of the layer to start from. start=0 starts from the first
-          convolutional layer. Default is 0.
+        - X: The input to the starting layer. If start=0, then this should be
+        an array of shape (N, C, 64, 64).
+        - start: The index of the layer to start from. start=0 starts from the
+        first convolutional layer. Default is 0.
         - end: The index of the layer to end at. start=11 ends at the last
           fully-connected layer, returning class scores. Default is 11.
         - mode: The mode to use, either 'test' or 'train'. We need this because
-          batch normalization behaves differently at training time and test time.
+          batch normalization behaves differently at training time and test
+          time.
 
         Returns:
         - out: Output from the end layer.
-        - cache: A cache object that can be passed to the backward method to run the
-          network backward over the same range of layers.
+        - cache: A cache object that can be passed to the backward method to
+        run the network backward over the same range of layers.
         """
         X = X.astype(self.dtype)
         if start is None:
@@ -152,8 +156,8 @@ class PretrainedCNN(object):
             if 0 <= i < len(self.conv_params):
                 # This is a conv layer
                 w, b = self.params['W%d' % i1], self.params['b%d' % i1]
-                gamma, beta = self.params['gamma%d' %
-                                          i1], self.params['beta%d' % i1]
+                gamma = self.params['gamma%d' % i1]
+                beta = self.params['beta%d' % i1]
                 conv_param = self.conv_params[i]
                 bn_param = self.bn_params[i]
                 bn_param['mode'] = mode
@@ -185,23 +189,26 @@ class PretrainedCNN(object):
 
     def backward(self, dout, cache):
         """
-        Run the model backward over a sequence of layers that were previously run
-        forward using the self.forward method.
+        Run the model backward over a sequence of layers that were previously
+        run forward using the self.forward method.
 
         Inputs:
-        - dout: Gradient with respect to the ending layer; this should have the same
-          shape as the out variable returned from the corresponding call to forward.
+        - dout: Gradient with respect to the ending layer; this should have
+        the same shape as the out variable returned from the corresponding
+        call to forward.
         - cache: A cache object returned from self.forward.
 
         Returns:
         - dX: Gradient with respect to the start layer. This will have the same
           shape as the input X passed to self.forward.
-        - grads: Gradient of all parameters in the layers. For example if you run
-          forward through two convolutional layers, then on the corresponding call
-          to backward grads will contain the gradients with respect to the weights,
-          biases, and spatial batchnorm parameters of those two convolutional
-          layers. The grads dictionary will therefore contain a subset of the keys
-          of self.params, and grads[k] and self.params[k] will have the same shape.
+        - grads: Gradient of all parameters in the layers. For example if you
+        run forward through two convolutional layers, then on the
+        corresponding call to backward grads will contain the gradients with
+        respect to the weights, biases, and spatial batchnorm parameters of
+        those two convolutional layers.
+        The grads dictionary will therefore contain a subset of the keys
+        of self.params, and grads[k] and self.params[k] will have the same
+        shape.
         """
         start, end, layer_caches = cache
         dnext_a = dout
@@ -247,8 +254,8 @@ class PretrainedCNN(object):
         If y is None, then run a test-time forward pass and return:
         - scores: Array of shape (N, 100) giving class scores.
 
-        If y is not None, then run a training-time forward and backward pass and
-        return a tuple of:
+        If y is not None, then run a training-time forward and backward pass
+        and return a tuple of:
         - loss: Scalar giving loss
         - grads: Dictionary of gradients, with the same keys as self.params.
         """
