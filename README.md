@@ -1,8 +1,8 @@
 # cs231n Assignments
 
-This is my attempts at the assignments for Stanford cs231n winter 2016 classes. 
+This is my attempts at the assignments for Stanford cs231n winter 2016 classes.
 
-The original course website is [here](http://cs231n.stanford.edu/2016/syllabus). 
+The original course website is [here](http://cs231n.stanford.edu/2016/syllabus).
 Videos on [YouTube](https://www.youtube.com/watch?v=NfnWJUyUJYU&list=PLkt2uSq6rBVctENoVBg1TpCC7OQi31AlC)
 
 ## Package Requirement
@@ -35,3 +35,7 @@ pickle.load(f, encoding='latin1')
 ```
 
 Still not sure how to fix `print` in notebooks, best I got is to use replace all...
+
+
+To convert other things from python 2 to 3 in notebooks, run the `2to3_nb.py`
+script in `assignment3` folder.
