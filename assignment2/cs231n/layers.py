@@ -547,7 +547,7 @@ def conv_backward_naive(dout, cache):
                            hh:hh + HH,
                            ww:ww + WW] += w[f] * dout[n, f, ho, wo]
     # unpad
-    dx = dx_pad[:, :, 1:-1, 1:-1]
+    dx = dx_pad[:, :, pad:-pad, pad:-pad]
     assert(dx.shape == x.shape)
     ##########################################################################
     #                             END OF YOUR CODE               #
@@ -654,6 +654,7 @@ def max_pool_backward_naive(dout, cache):
                     loc_area = grad_local[n, c,
                                           h_ind:h_ind + ph,
                                           w_ind:w_ind + pw]
+                    # dx = local gradient * upstream gradient
                     dx_area += loc_area * dout[n, c, hh, ww]
 
     ##########################################################################
@@ -702,42 +703,6 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     out, cache = batchnorm_forward(x.reshape((C, -1)).T,
                                    gamma, beta, bn_param)
     out = out.T.reshape((C, N, H, W)).swapaxes(0, 1)
-
-    # below is a manual implementation
-    # mode = bn_param.get('mode')
-    # assert(mode == 'train' or mode == 'test'), 'Invalid BatchNorm mode.'
-
-    # eps = bn_param.get('eps', 1e-8)
-    # momentum = bn_param.get('momentum', 0.9)
-    # running_mean = bn_param.get('running_mean', np.zeros(C, dtype=x.dtype))
-    # running_var = bn_param.get('running_var', np.zeros(C, dtype=x.dtype))
-
-    # if mode == 'train':
-    #     mean = x.mean(axis=(0, 2, 3))
-    #     var = x.var(axis=(0, 2, 3), ddof=1)
-
-    #     x_norm = (x - mean.reshape((1, C, 1, 1))) / \
-    #         np.sqrt(var.reshape((1, C, 1, 1)) + eps)
-    #     assert(x_norm.shape == x.shape), (x_norm.shape, x.shape)
-
-    #     out = gamma.reshape((1, C, 1, 1)) * x_norm + beta.reshape((1, C, 1, 1))
-
-    #     running_mean *= momentum
-    #     running_mean += (1 - momentum) * mean
-
-    #     running_var *= momentum
-    #     running_var += (1 - momentum) * var
-
-    #     bn_param['running_mean'] = running_mean
-    #     bn_param['running_var'] = running_var
-
-    #     cache = (x, mean, var, x_norm, gamma, eps)
-    # elif mode == 'test':
-    #     x_norm = (x - running_mean.reshape((1, C, 1, 1))) / \
-    #         np.sqrt(running_var.reshape((1, C, 1, 1)) + eps)
-    #     out = gamma.reshape((1, C, 1, 1)) * x_norm + beta.reshape((1, C, 1, 1))
-    # else:
-    #     pass
     ##########################################################################
     #                             END OF YOUR CODE                 #
     ##########################################################################
