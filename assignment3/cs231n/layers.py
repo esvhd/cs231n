@@ -83,9 +83,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
     During training the sample mean and (uncorrected) sample variance are
     computed from minibatch statistics and used to normalize the incoming data.
-    During training we also keep an exponentially decaying running mean of the mean
-    and variance of each feature, and these averages are used to normalize data
-    at test-time.
+    During training we also keep an exponentially decaying running mean of the
+    mean and variance of each feature, and these averages are used to
+    normalize data at test-time.
 
     At each timestep we update the running averages for mean and variance using
     an exponential decay based on the momentum parameter:
@@ -97,8 +97,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     behavior: they compute sample mean and variance for each feature using a
     large number of training images rather than using a running average. For
     this implementation we have chosen to use running averages instead since
-    they do not require an additional estimation step; the torch7 implementation
-    of batch normalization also uses running averages.
+    they do not require an additional estimation step; the torch7
+    implementation of batch normalization also uses running averages.
 
     Input:
     - x: Data of shape (N, D)
@@ -255,8 +255,8 @@ def svm_loss(x, y):
     Computes the loss and gradient using for multiclass SVM classification.
 
     Inputs:
-    - x: Input data, of shape (N, C) where x[i, j] is the score for the jth class
-      for the ith input.
+    - x: Input data, of shape (N, C) where x[i, j] is the score for the jth
+    class for the ith input.
     - y: Vector of labels, of shape (N,) where y[i] is the label for x[i] and
       0 <= y[i] < C
 
@@ -282,8 +282,8 @@ def softmax_loss(x, y):
     Computes the loss and gradient for softmax classification.
 
     Inputs:
-    - x: Input data, of shape (N, C) where x[i, j] is the score for the jth class
-      for the ith input.
+    - x: Input data, of shape (N, C) where x[i, j] is the score for the jth
+    class for the ith input.
     - y: Vector of labels, of shape (N,) where y[i] is the label for x[i] and
       0 <= y[i] < C
 

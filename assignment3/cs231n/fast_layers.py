@@ -45,8 +45,8 @@ def conv_forward_strides(x, w, b, conv_param):
     stride, pad = conv_param['stride'], conv_param['pad']
 
     # Check dimensions
-    #assert (W + 2 * pad - WW) % stride == 0, 'width does not work'
-    #assert (H + 2 * pad - HH) % stride == 0, 'height does not work'
+    # assert (W + 2 * pad - WW) % stride == 0, 'width does not work'
+    # assert (H + 2 * pad - HH) % stride == 0, 'height does not work'
 
     # Pad the input
     p = pad
@@ -133,10 +133,10 @@ def max_pool_forward_fast(x, pool_param):
     """
     A fast implementation of the forward pass for a max pooling layer.
 
-    This chooses between the reshape method and the im2col method. If the pooling
-    regions are square and tile the input image, then we can use the reshape
-    method which is very fast. Otherwise we fall back on the im2col method, which
-    is not much faster than the naive method.
+    This chooses between the reshape method and the im2col method. If the
+    pooling regions are square and tile the input image, then we can use the
+    reshape method which is very fast. Otherwise we fall back on the im2col
+    method, which is not much faster than the naive method.
     """
     N, C, H, W = x.shape
     pool_height, pool_width = pool_param[
@@ -172,8 +172,8 @@ def max_pool_backward_fast(dout, cache):
 
 def max_pool_forward_reshape(x, pool_param):
     """
-    A fast implementation of the forward pass for the max pooling layer that uses
-    some clever reshaping.
+    A fast implementation of the forward pass for the max pooling layer that
+    uses some clever reshaping.
 
     This can only be used for square pooling regions that tile the input.
     """
@@ -203,11 +203,11 @@ def max_pool_backward_reshape(dout, cache):
     NOTE: If there are multiple argmaxes, this method will assign gradient to
     ALL argmax elements of the input rather than picking one. In this case the
     gradient will actually be incorrect. However this is unlikely to occur in
-    practice, so it shouldn't matter much. One possible solution is to split the
-    upstream gradient equally among all argmax elements; this should result in a
-    valid subgradient. You can make this happen by uncommenting the line below;
-    however this results in a significant performance penalty (about 40% slower)
-    and is unlikely to matter in practice so we don't do it.
+    practice, so it shouldn't matter much. One possible solution is to split
+    the upstream gradient equally among all argmax elements; this should
+    result in a valid subgradient. You can make this happen by uncommenting
+    the line below; however this results in a significant performance penalty
+    (about 40% slower) and is unlikely to matter in practice so we don't do it.
     """
     x, x_reshaped, out = cache
 
