@@ -342,6 +342,10 @@ def batchnorm_backward_alt(dout, cache):
     dx = (1 / N * gamma * np.power(var_eps, -.5) *
           (N * dout - np.sum(dout, axis=0) -
            xmu / var_eps * np.sum(dout * xmu, axis=0)))
+
+    # another implementation is available here:
+    # https://costapt.github.io/2016/07/09/batch-norm-alt/
+
     ##########################################################################
     #                             END OF YOUR CODE                          #
     ##########################################################################
