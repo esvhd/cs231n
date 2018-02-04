@@ -469,10 +469,11 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     # allocate memory for du first. Array memory in numpy must be continuous,
     # therefore concatenating separately allocated arrays is not memory
     # efficient.
+    # u is output of ifog, before sigmoid, stacked together vertically.
     du = np.zeros((N, 4 * H))
 
-    # dc = dnext_c + dnext_h * o * dtanh(prev_c)
     # dnext_c here below is what I got wrong.
+    # accumulate dnext_c, local + upstream
     dnext_c += dnext_h * o * dtanh(next_c)
 
     dprev_c = f * dnext_c
@@ -493,16 +494,15 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     # dug = dtanh(ug) * dg
     du[:, 3 * H:] = dg * (1 - g**2)
 
-    # du = np.concatenate((dui, duf, duo, dug), axis=1)
-    # assert(du.shape == (N, 4 * H))
-
     # computer dx, dprev_h, dWh, dWx, db
     dx = du.dot(Wx.T)
     assert(dx.shape == (N, D))
 
+    # Wx is ifog stacked
     dWx = x.T.dot(du)
     assert(dWx.shape == Wx.shape)
 
+    # Wh is also ifog stacked
     dWh = prev_h.T.dot(du)
     assert(dWh.shape == (H, 4 * H))
 
@@ -512,43 +512,6 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     db = np.sum(du, axis=0)
     assert(db.shape == (4 * H, ))
 
-    # dWxg = x.T.dot(dug)
-    # assert(dWxg.shape == (D, H))
-
-    # dWhg = prev_h.T.dot(dug)
-    # assert(dWhg.shape == (H, H))
-
-    # dbg = np.sum(dug, axis=0)
-    # assert(dbg.shape == (H,))
-
-    # # backprop for i, f, o gate
-    # duo, dWxo, dWho, dbo = lstm_ifo_gates_backward(do, uo, x, prev_h)
-    # dui, dWxi, dWhi, dbi = lstm_ifo_gates_backward(di, ui, x, prev_h)
-    # duf, dWxf, dWhf, dbf = lstm_ifo_gates_backward(df, uf, x, prev_h)
-
-    # # compute dx
-    # Wxi = Wx[:, :H]
-    # Wxf = Wx[:, H:2 * H]
-    # Wxo = Wx[:, 2 * H:3 * H]
-    # Wxg = Wx[:, 3 * H:]
-
-    # dx = np.dot(dui, Wxi.T) + np.dot(duf, Wxf.T) + np.dot(duo, Wxo.T) +\
-    #     np.dot(dug, Wxg.T)
-    # assert(dx.shape == x.shape)
-
-    # # compute dh
-    # Whi = Wh[:, :H]
-    # Whf = Wh[:, H:2 * H]
-    # Who = Wh[:, 2 * H:3 * H]
-    # Whg = Wh[:, 3 * H:]
-
-    # dprev_h = dui.dot(Whi.T) + duf.dot(Whf.T) + duo.dot(Who.T) + dug.dot(Whg.T)
-    # assert(dprev_h.shape == prev_h.shape)
-
-    # # combine for Wx, Wh, b
-    # dWx = np.concatenate((dWxi, dWxf, dWxo, dWxg), axis=1)
-    # dWh = np.concatenate((dWhi, dWhf, dWho, dWhg), axis=1)
-    # db = np.concatenate((dbi, dbf, dbo, dbg))
     ##########################################################################
     #                               END OF YOUR CODE                         #
     ##########################################################################
